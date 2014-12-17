@@ -9,19 +9,31 @@ import config
 
 log = logging.getLogger(__name__)
 
+'''
 try:
     from max31855 import MAX31855, MAX31855Error
     sensor_available = True
 except ImportError:
     log.warning("Could not initialize temperature sensor, using dummy values!")
     sensor_available = False
+'''
 
 try:
-    from arduino import Arduino
+    from fs9721 import Client
+    sensor_available = True
+except:
+    log.warning("Could not initialize DMM for temperature")
+    sensor_available = False 
+
+try:
+    from Arduino import Arduino
     gpio_available = True
-    gpio_board = Arduino('COM49')
-    gpio_board.output([config.gpio_heat,config.gpio_cool,config.gpio_air])
-except ImportError:
+    gpio_board = Arduino('9600',port='/dev/ttyACM0')
+    gpio_board.pinMode(config.gpio_heat,"OUTPUT")
+    gpio_board.pinMode(config.gpio_cool,"OUTPUT")
+    gpio_board.pinMode(config.gpio_air,"OUTPUT")
+    gpio_board.pinMode(config.gpio_door,"INPUT")
+except:
     msg = "Could not initialize GPIOs, oven operation will only be simulated!"
     log.warning(msg)
     gpio_available = False
@@ -47,7 +59,7 @@ class Oven (threading.Thread):
     STATE_IDLE = "IDLE"
     STATE_RUNNING = "RUNNING"
 
-    def __init__(self, simulate=False, time_step=0.5):
+    def __init__(self, simulate=False, time_step=0.25):
         threading.Thread.__init__(self)
         self.daemon = True
         self.simulate = simulate
@@ -128,31 +140,31 @@ class Oven (threading.Thread):
         if value:
             self.heat = 1.0
             if gpio_available:
-                GPIO.output(config.gpio_heat, GPIO.LOW)
+                gpio_board.digitalWrite(config.gpio_heat, "HIGH")
         else:
             self.heat = 0.0
             if gpio_available:
-                GPIO.output(config.gpio_heat, GPIO.HIGH)
+                gpio_board.digitalWrite(config.gpio_heat, "LOW")
 
     def set_cool(self, value):
         if value:
             self.cool = 1.0
             if gpio_available:
-                GPIO.output(config.gpio_cool, GPIO.LOW)
+                gpio_board.digitalWrite(config.gpio_cool, "HIGH")
         else:
             self.cool = 0.0
             if gpio_available:
-                GPIO.output(config.gpio_cool, GPIO.HIGH)
+                 gpio_board.digitalWrite(config.gpio_cool, "LOW")
 
     def set_air(self, value):
         if value:
             self.air = 1.0
             if gpio_available:
-                GPIO.output(config.gpio_air, GPIO.LOW)
+                gpio_board.digitalWrite(config.gpio_air, "HIGH")
         else:
             self.air = 0.0
             if gpio_available:
-                GPIO.output(config.gpio_air, GPIO.HIGH)
+                gpio_board.digitalWrite(config.gpio_air,"LOW")
 
     def get_state(self):
         state = {
@@ -170,7 +182,7 @@ class Oven (threading.Thread):
 
     def get_door_state(self):
         if gpio_available:
-            return "OPEN" if GPIO.input(config.gpio_door) else "CLOSED"
+            return "OPEN" if gpio_board.digitalRead(config.gpio_door) else "CLOSED"
         else:
             return "UNKNOWN"
 
@@ -186,14 +198,17 @@ class TempSensor(threading.Thread):
 class TempSensorReal(TempSensor):
     def __init__(self, time_step):
         TempSensor.__init__(self, time_step)
+        '''
         self.thermocouple = MAX31855(config.gpio_sensor_cs,
                                      config.gpio_sensor_clock,
                                      config.gpio_sensor_data,
                                      "c")
+        '''
+        self.thermocouple = Client("/dev/ttyUSB0")
 
     def run(self):
         while True:
-            self.temperature = self.thermocouple.get()
+            self.temperature = self.thermocouple.getMeasurement().value
             time.sleep(self.time_step)
 
 
