@@ -7,3 +7,5 @@
 thumbs.db
 storage/profiles
 config.py
+/.project
+/.pydevproject
