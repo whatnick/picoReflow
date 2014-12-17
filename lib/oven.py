@@ -17,6 +17,17 @@ except ImportError:
     sensor_available = False
 
 try:
+    from arduino import Arduino
+    gpio_available = True
+    gpio_board = Arduino('COM49')
+    gpio_board.output([config.gpio_heat,config.gpio_cool,config.gpio_air])
+except ImportError:
+    msg = "Could not initialize GPIOs, oven operation will only be simulated!"
+    log.warning(msg)
+    gpio_available = False
+
+'''
+try:
     import RPi.GPIO as GPIO
     GPIO.setmode(GPIO.BCM)
     GPIO.setwarnings(False)
@@ -30,7 +41,7 @@ except ImportError:
     msg = "Could not initialize GPIOs, oven operation will only be simulated!"
     log.warning(msg)
     gpio_available = False
-
+'''
 
 class Oven (threading.Thread):
     STATE_IDLE = "IDLE"
